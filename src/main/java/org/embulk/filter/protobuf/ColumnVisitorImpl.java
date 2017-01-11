@@ -1,0 +1,201 @@
+package org.embulk.filter.protobuf;
+
+import com.google.common.io.BaseEncoding;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.MessageOrBuilder;
+import com.google.protobuf.util.JsonFormat;
+
+import org.embulk.filter.protobuf.ProtobufFilterPlugin.ColumnTask;
+import org.embulk.filter.protobuf.ProtobufFilterPlugin.PluginTask;
+
+import org.embulk.plugin.PluginClassLoader;
+import org.embulk.spi.Column;
+import org.embulk.spi.ColumnVisitor;
+import org.embulk.spi.PageBuilder;
+import org.embulk.spi.PageReader;
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class ColumnVisitorImpl implements ColumnVisitor
+{
+    private final PluginTask pluginTask;
+    private final PageReader pageReader;
+    private final PageBuilder pageBuilder;
+    private final Map<String, ColumnTask> columnTaskMap;
+
+    ColumnVisitorImpl(PluginTask task, PageReader reader, PageBuilder builder)
+    {
+        this.pluginTask = task;
+        this.pageReader = reader;
+        this.pageBuilder = builder;
+        this.columnTaskMap = getColumnMap(task.getColumns());
+        addProtobufJarToClasspath();
+    }
+
+    private Map<String, ColumnTask> getColumnMap(
+            List<ColumnTask> columnTasks)
+    {
+        Map<String, ColumnTask> m = new HashMap<>();
+        for (ColumnTask columnTask : columnTasks) {
+            m.put(columnTask.getName(), columnTask);
+        }
+        return m;
+    }
+
+    private void addProtobufJarToClasspath()
+    {
+        PluginClassLoader loader = (PluginClassLoader) getClass().getClassLoader();
+        Path protobufJarPath = Paths.get(pluginTask.getProtobufJarPath());
+        // TODO: it is preferable to do validation all together
+        //       in `validateConfig` methods
+        if (!protobufJarPath.toFile().exists()) {
+            System.out.println("File does not exist");
+        }
+        loader.addPath(protobufJarPath);
+    }
+
+    private ColumnTask getColumnTask(Column column)
+    {
+        String colName = column.getName();
+        return columnTaskMap.get(colName);
+    }
+
+    private byte[] getDecodedAsBytes(Column column)
+    {
+        String encoded = pageReader.getString(column);
+        byte[] decodedAsBytes = null;
+        String encoding = pluginTask.getEncoding();
+        if (encoding.equals("Base64")) {
+            decodedAsBytes = BaseEncoding.base64().decode(encoded);
+        }
+        return decodedAsBytes;
+    }
+
+    private String executeTask(ColumnTask colTask, Column column)
+    {
+        String messageName = colTask.getMessage();
+        byte[] serialized = getDecodedAsBytes(column);
+        PluginClassLoader loader = (PluginClassLoader) getClass().getClassLoader();
+        // Get a message object
+        // TODO: Do appropriate error handling
+        Object message = null;
+        try {
+            // throws ClassNotFoundException
+            Class<?> messageClass = loader.loadClass(messageName);
+            // throws NoSuchMethodException
+            Method parseFrom = messageClass.getMethod(
+                "parseFrom", byte[].class);
+            // throws IllegalAccessException, InvocationTargetException
+            message = parseFrom.invoke(
+                (Object) messageClass, (Object) serialized);
+        }
+        catch (ClassNotFoundException e) {
+            System.out.println(e);
+        }
+        catch (NoSuchMethodException e) {
+            System.out.println(e);
+        }
+        catch (IllegalAccessException e) {
+            System.out.println(e);
+        }
+        catch (InvocationTargetException e) {
+            System.out.println(e.getCause());
+        }
+        // convert message object to JSON string
+        String deserialized = null;
+        try {
+            // JsonFormat in protobuf-java-util
+            deserialized = JsonFormat.printer().print(
+                (MessageOrBuilder) message);
+        }
+        catch (InvalidProtocolBufferException e) {
+            System.out.println(e);
+        }
+        return deserialized;
+    }
+
+    @Override
+    public void booleanColumn(Column outputColumn)
+    {
+        if (pageReader.isNull(outputColumn)) {
+            pageBuilder.setNull(outputColumn);
+        }
+        else {
+            pageBuilder.setBoolean(
+                outputColumn, pageReader.getBoolean(outputColumn));
+        }
+    }
+
+    @Override
+    public void longColumn(Column outputColumn)
+    {
+        if (pageReader.isNull(outputColumn)) {
+            pageBuilder.setNull(outputColumn);
+        }
+        else {
+            pageBuilder.setLong(
+                outputColumn, pageReader.getLong(outputColumn));
+        }
+    }
+
+    @Override
+    public void doubleColumn(Column outputColumn)
+    {
+        if (pageReader.isNull(outputColumn)) {
+            pageBuilder.setNull(outputColumn);
+        }
+        else {
+            pageBuilder.setDouble(
+                outputColumn, pageReader.getDouble(outputColumn));
+        }
+    }
+
+    @Override
+    public void stringColumn(Column outputColumn)
+    {
+        if (pageReader.isNull(outputColumn)) {
+            pageBuilder.setNull(outputColumn);
+        }
+        else {
+            ColumnTask task = getColumnTask(outputColumn);
+            if (task == null) {
+                pageBuilder.setString(
+                    outputColumn, pageReader.getString(outputColumn));
+            }
+            else {
+                pageBuilder.setString(
+                    outputColumn, executeTask(task, outputColumn));
+            }
+        }
+    }
+
+    @Override
+    public void timestampColumn(Column outputColumn)
+    {
+        if (pageReader.isNull(outputColumn)) {
+            pageBuilder.setNull(outputColumn);
+        }
+        else {
+            pageBuilder.setTimestamp(
+                outputColumn, pageReader.getTimestamp(outputColumn));
+        }
+    }
+
+    @Override
+    public void jsonColumn(Column outputColumn)
+    {
+        if (pageReader.isNull(outputColumn)) {
+            pageBuilder.setNull(outputColumn);
+        }
+        else {
+            pageBuilder.setJson(
+                outputColumn, pageReader.getJson(outputColumn));
+        }
+    }
+}

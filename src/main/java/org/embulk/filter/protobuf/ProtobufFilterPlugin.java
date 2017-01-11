@@ -1,36 +1,52 @@
 package org.embulk.filter.protobuf;
 
 import com.google.common.base.Optional;
+
 import org.embulk.config.Config;
 import org.embulk.config.ConfigDefault;
-import org.embulk.config.ConfigDiff;
 import org.embulk.config.ConfigSource;
 import org.embulk.config.Task;
 import org.embulk.config.TaskSource;
-import org.embulk.spi.Column;
+import org.embulk.spi.Exec;
 import org.embulk.spi.FilterPlugin;
+import org.embulk.spi.Page;
+import org.embulk.spi.PageBuilder;
 import org.embulk.spi.PageOutput;
+import org.embulk.spi.PageReader;
 import org.embulk.spi.Schema;
 
-public class ProtobufFilterPlugin
-        implements FilterPlugin
+import java.util.List;
+
+public class ProtobufFilterPlugin implements FilterPlugin
 {
-    public interface PluginTask
-            extends Task
+    public interface PluginTask extends Task
     {
-        // configuration option 1 (required integer)
-        @Config("option1")
-        public int getOption1();
+        @Config("serialize")
+        @ConfigDefault("false")
+        public Optional<Boolean> getDoSerialize();
 
-        // configuration option 2 (optional string, null is not allowed)
-        @Config("option2")
-        @ConfigDefault("\"myvalue\"")
-        public String getOption2();
+        @Config("encoding")
+        public String getEncoding();
 
-        // configuration option 3 (optional string, null is allowed)
-        @Config("option3")
-        @ConfigDefault("null")
-        public Optional<String> getOption3();
+        @Config("protobuf_jar_path")
+        public String getProtobufJarPath();
+
+        @Config("columns")
+        public List<ColumnTask> getColumns();
+    }
+
+    public interface ColumnTask extends Task
+    {
+        @Config("name")
+        public String getName();
+
+        @Config("message")
+        public String getMessage();
+    }
+
+    // TODO
+    public void validate(PluginTask task, Schema inputSchema)
+    {
     }
 
     @Override
@@ -38,9 +54,8 @@ public class ProtobufFilterPlugin
             FilterPlugin.Control control)
     {
         PluginTask task = config.loadConfig(PluginTask.class);
-
+        validate(task, inputSchema);
         Schema outputSchema = inputSchema;
-
         control.run(task.dump(), outputSchema);
     }
 
@@ -49,8 +64,51 @@ public class ProtobufFilterPlugin
             Schema outputSchema, PageOutput output)
     {
         PluginTask task = taskSource.loadTask(PluginTask.class);
+        PageBuilder pageBuilder = new PageBuilder(
+            Exec.getBufferAllocator(), outputSchema, output);
+        PageReader pageReader = new PageReader(inputSchema);
+        ColumnVisitorImpl visitor = new ColumnVisitorImpl(
+            task, pageReader, pageBuilder);
 
-        // Write your code here :)
-        throw new UnsupportedOperationException("ProtobufFilterPlugin.open method is not implemented yet");
+        return new PageOutputImpl(
+            pageReader, pageBuilder, outputSchema, visitor);
     }
+
+    public static class PageOutputImpl implements PageOutput
+    {
+        private PageReader pageReader;
+        private PageBuilder pageBuilder;
+        private Schema outputSchema;
+        private ColumnVisitorImpl visitor;
+
+        PageOutputImpl(PageReader pageReader, PageBuilder pageBuilder, Schema outputSchema, ColumnVisitorImpl visitor)
+        {
+            this.pageReader = pageReader;
+            this.pageBuilder = pageBuilder;
+            this.outputSchema = outputSchema;
+            this.visitor = visitor;
+        }
+
+        @Override
+        public void add(Page page)
+        {
+            pageReader.setPage(page);
+            while (pageReader.nextRecord()) {
+                outputSchema.visitColumns(visitor);
+                pageBuilder.addRecord();
+            }
+        }
+
+        @Override
+        public void finish()
+        {
+            pageBuilder.finish();
+        }
+
+        @Override
+        public void close()
+        {
+            pageBuilder.close();
+        }
+    };
 }

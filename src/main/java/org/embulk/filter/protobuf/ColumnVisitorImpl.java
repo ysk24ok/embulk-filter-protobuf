@@ -2,6 +2,7 @@ package org.embulk.filter.protobuf;
 
 import com.google.common.io.BaseEncoding;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.util.JsonFormat;
 
@@ -66,34 +67,39 @@ public class ColumnVisitorImpl implements ColumnVisitor
         return columnTaskMap.get(colName);
     }
 
-    private byte[] getDecodedAsBytes(Column column)
+    private byte[] decodeMessage(String messageAsString)
     {
-        String encoded = pageReader.getString(column);
-        byte[] decodedAsBytes = null;
+        byte[] decoded = null;
         String encoding = pluginTask.getEncoding();
         if (encoding.equals("Base64")) {
-            decodedAsBytes = BaseEncoding.base64().decode(encoded);
+            decoded = BaseEncoding.base64().decode(messageAsString);
         }
-        return decodedAsBytes;
+        return decoded;
     }
 
-    private String executeTask(ColumnTask colTask, Column column)
+    private String encodeMessage(byte[] messageAsBytes)
     {
-        String messageName = colTask.getMessage();
-        byte[] serialized = getDecodedAsBytes(column);
+        String encoded = null;
+        String encoding = pluginTask.getEncoding();
+        if (encoding.equals("Base64")) {
+            encoded = BaseEncoding.base64().encode(messageAsBytes);
+        }
+        return encoded;
+    }
+
+    private String convertMessageBytesToJson(
+            byte[] messageAsBytes, String messageName)
+    {
         PluginClassLoader loader = (PluginClassLoader) getClass().getClassLoader();
         // Get a message object
         // TODO: Do appropriate error handling
         Object message = null;
         try {
-            // throws ClassNotFoundException
             Class<?> messageClass = loader.loadClass(messageName);
-            // throws NoSuchMethodException
             Method parseFrom = messageClass.getMethod(
                 "parseFrom", byte[].class);
-            // throws IllegalAccessException, InvocationTargetException
             message = parseFrom.invoke(
-                (Object) messageClass, (Object) serialized);
+                (Object) messageClass, (Object) messageAsBytes);
         }
         catch (ClassNotFoundException e) {
             System.out.println(e);
@@ -107,17 +113,71 @@ public class ColumnVisitorImpl implements ColumnVisitor
         catch (InvocationTargetException e) {
             System.out.println(e.getCause());
         }
-        // convert message object to JSON string
-        String deserialized = null;
+        // Convert message object to json string
+        String messageAsString = null;
         try {
-            // JsonFormat in protobuf-java-util
-            deserialized = JsonFormat.printer().print(
+            messageAsString = JsonFormat.printer().print(
                 (MessageOrBuilder) message);
         }
         catch (InvalidProtocolBufferException e) {
             System.out.println(e);
         }
-        return deserialized;
+        return messageAsString;
+    }
+
+    private byte[] convertJsonToMessageBytes(
+            String messageAsJson, String messageName)
+    {
+        PluginClassLoader loader = (PluginClassLoader) getClass().getClassLoader();
+        // Get a message builder object
+        // TODO: Do appropriate error handling
+        Message.Builder builder = null;
+        try {
+            Class<?> messageClass = loader.loadClass(messageName);
+            Method newBuilder = messageClass.getMethod("newBuilder");
+            builder = (Message.Builder) newBuilder.invoke(
+                (Object) messageClass);
+        }
+        catch (ClassNotFoundException e) {
+            System.out.println(e);
+        }
+        catch (NoSuchMethodException e) {
+            System.out.println(e);
+        }
+        catch (IllegalAccessException e) {
+            System.out.println(e);
+        }
+        catch (InvocationTargetException e) {
+            System.out.println(e.getCause());
+        }
+        // Convert message json to binary
+        byte[] messageAsBytes = null;
+        try {
+            JsonFormat.parser().merge(messageAsJson, builder);
+            messageAsBytes = builder.build().toByteArray();
+        }
+        catch (InvalidProtocolBufferException e) {
+            System.out.println(e);
+        }
+        return messageAsBytes;
+    }
+
+    private String executeTask(ColumnTask colTask, Column column)
+    {
+        String messageName = colTask.getMessage();
+        // serialize
+        if (pluginTask.getDoSerialize().get()) {
+            String messageAsJson = pageReader.getString(column);
+            byte[] messageAsBytes = convertJsonToMessageBytes(
+                messageAsJson, messageName);
+            return encodeMessage(messageAsBytes);
+        }
+        // deserialize
+        else {
+            String messageAsString = pageReader.getString(column);
+            byte[] messageAsBytes = decodeMessage(messageAsString);
+            return convertMessageBytesToJson(messageAsBytes, messageName);
+        }
     }
 
     @Override

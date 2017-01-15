@@ -10,3 +10,7 @@ build/
 /.metadata/
 .classpath
 .project
+
+example/*.jar
+example/*.class
+example/com

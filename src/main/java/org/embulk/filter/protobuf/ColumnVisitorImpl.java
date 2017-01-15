@@ -53,11 +53,6 @@ public class ColumnVisitorImpl implements ColumnVisitor
     {
         PluginClassLoader loader = (PluginClassLoader) getClass().getClassLoader();
         Path protobufJarPath = Paths.get(pluginTask.getProtobufJarPath());
-        // TODO: it is preferable to do validation all together
-        //       in `validateConfig` methods
-        if (!protobufJarPath.toFile().exists()) {
-            System.out.println("File does not exist");
-        }
         loader.addPath(protobufJarPath);
     }
 

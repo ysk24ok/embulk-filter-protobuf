@@ -26,6 +26,7 @@ dependencies {
     compile "com.google.protobuf:protobuf-java-util:3.1.0"
     testCompile "junit:junit:4.+"
     testCompile "org.embulk:embulk-core:0.8.15:tests"
+    testCompile files("example/AddressBookProtosProto3Syntax.jar")
 }
 
 task classpath(type: Copy, dependsOn: ["jar"]) {

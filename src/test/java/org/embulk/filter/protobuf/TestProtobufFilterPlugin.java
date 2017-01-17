@@ -36,7 +36,7 @@ public class TestProtobufFilterPlugin
 
         String pluginBasePath = new File(".").getAbsoluteFile().getParent();
         this.protobufJarPath = String.format(
-            "%s/example/AddressBookProtosProto2SyntaxCompiledByProto3.jar",
+            "%s/example/AddressBookProtosProto3Syntax.jar",
             pluginBasePath);
     }
 

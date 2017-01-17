@@ -1,19 +1,20 @@
 #!/bin/sh
-proto2_bin_dir=
-proto3_bin_dir=
+
+# Specify the directory where `protoc` command exists
+proto_bin_dir=/usr/local/bin
 
 protobuf_jar_version=3.1.0
 protobuf_jar=protobuf-java-$protobuf_jar_version.jar
 protobuf_jar_path=../classpath/$protobuf_jar
 
 if [ ! -e $protobuf_jar_path ]; then
-  echo "$protobuf_jar_path does not exist. Run '$ ./gradlew build' first."
+  echo "$protobuf_jar_path does not exist. Run `./gradlew build` first."
   exit
 fi
 
 # AddressBookProtos Setting
-proto_proto2_syntax=addressbook_proto2_syntax.proto
-proto_proto3_syntax=addressbook_proto3_syntax.proto
+proto_proto2syntax=addressbook_proto2_syntax.proto
+proto_proto3syntax=addressbook_proto3_syntax.proto
 package_path=com/example/tutorial
 outer_classname=AddressBookProtos
 
@@ -33,17 +34,12 @@ function generate_jar() {
   rm -f $generated_class_file_path
 }
 
-echo "Generating proto2 syntax jar compiled by proto2 ..."
-jar_basename=${outer_classname}Proto2SyntaxCompiledByProto2
-generate_jar $proto2_bin_dir $proto_proto2_syntax $jar_basename
+echo "Generating jar from proto2-syntax .proto ..."
+jar_basename=${outer_classname}Proto2Syntax
+generate_jar $proto_bin_dir $proto_proto2syntax $jar_basename
 echo "Done."
 
-echo "Generating proto2 syntax jar compiled by proto3 ..."
-jar_basename=${outer_classname}Proto2SyntaxCompiledByProto3
-generate_jar $proto3_bin_dir $proto_proto2_syntax $jar_basename
-echo "Done."
-
-echo "Generating proto3 syntax jar compiled by proto3 ..."
+echo "Generating jar from proto3-syntax .proto ..."
 jar_basename=${outer_classname}Proto3Syntax
-generate_jar $proto3_bin_dir $proto_proto3_syntax $jar_basename
+generate_jar $proto_bin_dir $proto_proto3syntax $jar_basename
 echo "Done."

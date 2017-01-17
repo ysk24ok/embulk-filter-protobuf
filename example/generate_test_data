@@ -1,0 +1,23 @@
+#!/bin/sh
+
+if [ ! -e ../classpath ]; then
+  echo "../classpath directory does not exist. Run `./gradlew build` first."
+  exit
+fi
+
+function compile() {
+  addressbook_jar=$1
+  classpath=./:../classpath/*:./$addressbook_jar
+  javac -classpath $classpath GenerateTestData.java
+  java -classpath $classpath GenerateTestData
+}
+
+addressbook_jar=AddressBookProtosProto2Syntax.jar
+echo "Compiling with $addressbook_jar ..."
+compile $addressbook_jar
+echo "Done.\n"
+
+addressbook_jar=AddressBookProtosProto3Syntax.jar
+echo "Compiling with $addressbook_jar ..."
+compile $addressbook_jar
+echo "Done.\n"

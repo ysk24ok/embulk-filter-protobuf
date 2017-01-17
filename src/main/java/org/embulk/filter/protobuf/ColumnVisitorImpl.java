@@ -17,6 +17,7 @@ import org.embulk.spi.PageReader;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -51,9 +52,16 @@ public class ColumnVisitorImpl implements ColumnVisitor
 
     private void addProtobufJarToClasspath()
     {
-        PluginClassLoader loader = (PluginClassLoader) getClass().getClassLoader();
-        Path protobufJarPath = Paths.get(pluginTask.getProtobufJarPath());
-        loader.addPath(protobufJarPath);
+        // FIXME:
+        // getClass().getClassLoader() returns sun.misc.Launcher$AppClassLoader
+        // and it cannot be cast to PluginClassLoader in gradle test.
+        try {
+            PluginClassLoader loader = (PluginClassLoader) getClass().getClassLoader();
+            Path protobufJarPath = Paths.get(pluginTask.getProtobufJarPath());
+            loader.addPath(protobufJarPath);
+        }
+        catch (ClassCastException e) {
+        }
     }
 
     private ColumnTask getColumnTask(Column column)
@@ -85,7 +93,7 @@ public class ColumnVisitorImpl implements ColumnVisitor
     private String convertMessageBytesToJson(
             byte[] messageAsBytes, String messageName)
     {
-        PluginClassLoader loader = (PluginClassLoader) getClass().getClassLoader();
+        URLClassLoader loader = (URLClassLoader) getClass().getClassLoader();
         // Get a message object
         // TODO: Do appropriate error handling
         Object message = null;
@@ -111,8 +119,9 @@ public class ColumnVisitorImpl implements ColumnVisitor
         // Convert message object to json string
         String messageAsString = null;
         try {
-            messageAsString = JsonFormat.printer().print(
-                (MessageOrBuilder) message);
+            messageAsString = JsonFormat.printer()
+                .omittingInsignificantWhitespace()
+                .print((MessageOrBuilder) message);
         }
         catch (InvalidProtocolBufferException e) {
             System.out.println(e);
@@ -123,7 +132,7 @@ public class ColumnVisitorImpl implements ColumnVisitor
     private byte[] convertJsonToMessageBytes(
             String messageAsJson, String messageName)
     {
-        PluginClassLoader loader = (PluginClassLoader) getClass().getClassLoader();
+        URLClassLoader loader = (URLClassLoader) getClass().getClassLoader();
         // Get a message builder object
         // TODO: Do appropriate error handling
         Message.Builder builder = null;

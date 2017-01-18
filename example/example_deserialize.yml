@@ -1,0 +1,17 @@
+in:
+  type: file
+  path_prefix: example/example_deserialize.csv
+  parser:
+    type: csv
+    columns:
+      - {name: record, type: string}
+filters:
+  - type: protobuf
+    deserialize: true
+    encoding: Base64
+    #protobuf_jar_path: example/AddressBookProtosProto2Syntax.jar
+    protobuf_jar_path: example/AddressBookProtosProto3Syntax.jar
+    columns:
+      - {name: record, message: com.example.tutorial.AddressBookProtos$Person}
+out:
+  type: stdout

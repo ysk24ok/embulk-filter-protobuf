@@ -1,0 +1,4 @@
+{"name":"John Doe","id":1234,"email":"jdoe@example.com","phone":[{"number":"111-0000","type":"MOBILE"},{"number":"555-4321","type":"HOME"}]}
+{"name":"John Doe","id":1234,"email":"jdoe@example.com","phone":[{"number":"111-0000"},{"number":"555-4321","type":"HOME"}]}
+{"name":"Jane Doe","id":1235,"phone":[{"number":"999-8888","type":"MOBILE"}]}
+{"name":"Jane Doe","id":1235,"phone":[{"number":"999-8888"}]}

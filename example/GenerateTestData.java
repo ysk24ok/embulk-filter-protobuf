@@ -8,7 +8,7 @@ import java.util.Base64;
 // https://developers.google.com/protocol-buffers/docs/javatutorial
 public class GenerateTestData
 {
-    public static void main(String args[])
+    public static void main(String[] args)
     {
         Person john = Person.newBuilder()
             .setId(1234)

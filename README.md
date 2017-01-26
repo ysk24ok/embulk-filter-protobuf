@@ -56,6 +56,7 @@ so generate `.jar` file from your `.proto` and pass it to `protobuf_jar_path` op
 Run commands below.
 
 ```sh
+$ ./gradlew package
 $ cd example
 $ ./generate_jar_from_proto
 ```

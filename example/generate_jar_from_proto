@@ -7,8 +7,8 @@ protobuf_jar_version=3.1.0
 protobuf_jar=protobuf-java-$protobuf_jar_version.jar
 protobuf_jar_path=../classpath/$protobuf_jar
 
-if [ ! -e $protobuf_jar_path ]; then
-  echo "$protobuf_jar_path does not exist. Run `./gradlew build` first."
+if [ ! -e ../classpath ]; then
+  echo '../classpath directory does not exist. Run `./gradlew package` first.'
   exit
 fi
 
@@ -30,7 +30,6 @@ function generate_jar() {
   javac -classpath $protobuf_jar_path $generated_java_file_path
   jar cvf ./${jar_basename}.jar $generated_class_file_path 1>/dev/null
   mv $generated_java_file_path $package_path/$jar_basename.java
-  rm -f $generated_java_file_path
   rm -f $generated_class_file_path
 }
 

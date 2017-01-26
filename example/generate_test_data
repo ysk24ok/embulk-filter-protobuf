@@ -1,7 +1,7 @@
 #!/bin/sh
 
 if [ ! -e ../classpath ]; then
-  echo "../classpath directory does not exist. Run `./gradlew build` first."
+  echo '../classpath directory does not exist. Run `./gradlew package` first.'
   exit
 fi
 

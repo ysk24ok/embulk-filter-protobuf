@@ -12,6 +12,7 @@ import org.embulk.filter.protobuf.ProtobufFilterPlugin.PluginTask;
 import org.embulk.plugin.PluginClassLoader;
 import org.embulk.spi.Column;
 import org.embulk.spi.ColumnVisitor;
+import org.embulk.spi.DataException;
 import org.embulk.spi.PageBuilder;
 import org.embulk.spi.PageReader;
 
@@ -52,12 +53,12 @@ public class ColumnVisitorImpl implements ColumnVisitor
 
     private void addProtobufJarToClasspath()
     {
+        Path protobufJarPath = Paths.get(pluginTask.getProtobufJarPath());
         // FIXME:
         // getClass().getClassLoader() returns sun.misc.Launcher$AppClassLoader
         // and it cannot be cast to PluginClassLoader in gradle test.
         try {
             PluginClassLoader loader = (PluginClassLoader) getClass().getClassLoader();
-            Path protobufJarPath = Paths.get(pluginTask.getProtobufJarPath());
             loader.addPath(protobufJarPath);
         }
         catch (ClassCastException e) {
@@ -95,7 +96,6 @@ public class ColumnVisitorImpl implements ColumnVisitor
     {
         URLClassLoader loader = (URLClassLoader) getClass().getClassLoader();
         // Get a message object
-        // TODO: Do appropriate error handling
         Object message = null;
         try {
             Class<?> messageClass = loader.loadClass(messageName);
@@ -105,16 +105,16 @@ public class ColumnVisitorImpl implements ColumnVisitor
                 (Object) messageClass, (Object) messageAsBytes);
         }
         catch (ClassNotFoundException e) {
-            System.out.println(e);
+            throw new DataException(e);
         }
         catch (NoSuchMethodException e) {
-            System.out.println(e);
+            throw new DataException(e);
         }
         catch (IllegalAccessException e) {
-            System.out.println(e);
+            throw new DataException(e);
         }
         catch (InvocationTargetException e) {
-            System.out.println(e.getCause());
+            throw new DataException(e);
         }
         // Convert message object to json string
         String messageAsString = null;
@@ -124,7 +124,7 @@ public class ColumnVisitorImpl implements ColumnVisitor
                 .print((MessageOrBuilder) message);
         }
         catch (InvalidProtocolBufferException e) {
-            System.out.println(e);
+            throw new DataException(e);
         }
         return messageAsString;
     }
@@ -134,7 +134,6 @@ public class ColumnVisitorImpl implements ColumnVisitor
     {
         URLClassLoader loader = (URLClassLoader) getClass().getClassLoader();
         // Get a message builder object
-        // TODO: Do appropriate error handling
         Message.Builder builder = null;
         try {
             Class<?> messageClass = loader.loadClass(messageName);
@@ -143,16 +142,16 @@ public class ColumnVisitorImpl implements ColumnVisitor
                 (Object) messageClass);
         }
         catch (ClassNotFoundException e) {
-            System.out.println(e);
+            throw new DataException(e);
         }
         catch (NoSuchMethodException e) {
-            System.out.println(e);
+            throw new DataException(e);
         }
         catch (IllegalAccessException e) {
-            System.out.println(e);
+            throw new DataException(e);
         }
         catch (InvocationTargetException e) {
-            System.out.println(e.getCause());
+            throw new DataException(e);
         }
         // Convert message json to binary
         byte[] messageAsBytes = null;
@@ -161,7 +160,7 @@ public class ColumnVisitorImpl implements ColumnVisitor
             messageAsBytes = builder.build().toByteArray();
         }
         catch (InvalidProtocolBufferException e) {
-            System.out.println(e);
+            throw new DataException(e);
         }
         return messageAsBytes;
     }

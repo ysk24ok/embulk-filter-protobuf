@@ -79,10 +79,10 @@ Gem::Specification.new do |spec|
   spec.version       = "${project.version}"
   spec.authors       = ["Yusuke NISHIOKA"]
   spec.summary       = %[Protobuf filter plugin for Embulk]
-  spec.description   = %[Protobuf]
+  spec.description   = %[An Embulk filter plugin for interconversion between Protocol Buffer message and JSON.]
   spec.email         = ["yusuke.nishioka.0713@gmail.com"]
   spec.licenses      = ["MIT"]
-  # TODO set this: spec.homepage      = "https://github.com/yusuke.nishioka.0713/embulk-filter-protobuf"
+  spec.homepage      = "https://github.com/ysk24ok/embulk-filter-protobuf"
 
   spec.files         = `git ls-files`.split("\n") + Dir["classpath/*.jar"]
   spec.test_files    = spec.files.grep(%r"^(test|spec)/")
